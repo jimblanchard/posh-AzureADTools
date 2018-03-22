@@ -3,7 +3,7 @@ $Global:msGraph = $null
 $Global:AzureADPowerShellClientId = '1950a258-227b-4e31-a9cf-717495945fc2'
 $Global:OAuth2OobReplyUri = 'urn:ietf:wg:oauth:2.0:oob'
 $Global:OAuth2AutoReplyUri = 'urn:ietf:wg:oauth:2.0:oob:auto'
-$Global:MicrosoftGraphEndpointUri = 'https://graph.microsoft.com'1
+$Global:MicrosoftGraphEndpointUri = 'https://graph.microsoft.com'
 
 function Set-MyAzureADEnvironment {
 	$Global:msAD = Get-AzureADServicePrincipal -Filter "AppId eq '00000002-0000-0000-c000-000000000000'"
