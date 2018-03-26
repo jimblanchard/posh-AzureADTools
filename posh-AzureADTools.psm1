@@ -64,12 +64,12 @@ function Get-MyAzureADGraphObjects {
                    ValueFromPipelineByPropertyName=$true,
                    Position=1)]
 		[string]
-		$ObjectType,
+		$ObjectCollection,
 		[Parameter(Mandatory=$false,
                    ValueFromPipelineByPropertyName=$true,
                    Position=2)]
 		[string]
-		$APIVersion = "beta",
+		$ApiVersion = "beta",
 		[Parameter(Mandatory=$false,
                    ValueFromPipelineByPropertyName=$true,
                    Position=0)]
@@ -84,7 +84,7 @@ function Get-MyAzureADGraphObjects {
 		$EndPoint = "graph.microsoft.com",
 		$Top = "999",
 		[switch]
-		$UseDeltaQuery,
+		$AsDeltaQuery,
 		[string]
 		$DeltaLink
     )
@@ -93,95 +93,63 @@ function Get-MyAzureADGraphObjects {
 	$results.Values = $null
 	$results.DeltaLink = $null
 
-	if ($UseDeltaQuery -and ($null -notlike $DeltaLink))
+	$select = If($Attributes -eq $null) {""} Else {"select=$Attributes&"}
+	$maxResults = "top=$Top"
+	$deltaQuery = If($AsDeltaQuery) {"/delta"} Else {""}
+
+	if ($DeltaLink -like $null)
 	{
-				Write-Verbose "Using DeltaQueryLink!"	
-				$uri = $DeltaLink
+		$uri = "https://${EndPoint}/${ApiVersion}/${ObjectCollection}${deltaQuery}?${select}${maxResults}"
 	}
 	else
 	{
-		if ($Attributes -like $null)
-		{
-			if ($UseDeltaQuery)
-			{
-				$uri = ("https://{0}/{1}/{2}s/delta?top={3}" -f $EndPoint,$APIVersion,$ObjectType,$top)
-			}
-			else
-			{
-				$uri = ("https://{0}/{1}/{2}s?top={3}" -f $EndPoint,$APIVersion,$ObjectType,$top)
-			}
-		}
-		else
-		{
-			if ($UseDeltaQuery)
-			{
-				$selectAttributes = $attributes -join ','
-				$uri = ("https://{0}/{1}/{2}s/delta?select={3}&top={4}" -f $Endpoint,$APIVersion,$ObjectType,$selectAttributes,$top)
-			}
-			else
-			{
-				$selectAttributes = $attributes -join ','
-				$uri = ("https://{0}/{1}/{2}s?select={3}&top={4}" -f $Endpoint,$APIVersion,$ObjectType,$selectAttributes,$top)
-			}
-		}
+		$uri = $DeltaLink
 	}
 
-	write-debug ("DEBUG:MS Graph URI:{0}" -f $uri)
-	$cmd = 'Invoke-RestMethod -Method Get -Uri $Uri -Headers $AuthHeader'
-	$statusMsg = "VEBOSE:Invoking Expression $cmd"
-	write-verbose $statusMsg
-	$activityName = $MyInvocation.InvocationName
-
-	Write-Progress -Id 1 -Activity $activityName -Status $statusMsg
-	$x = $null
+	$expressionResult = $null
 	try
 	{
-		$x = Invoke-Expression $cmd
+		$expressionResult = Invoke-Expression "Invoke-RestMethod -Method Get -Uri $Uri -Headers $AuthHeader"
 	}
 	catch
 	{
 		write-error $_
 	}
-	$pagedUri = $Null
 
-	if ($x)
+	if ($expressionResult)
 	{
-		$i = 1
-
+		$nextPage = $null
 		do 
 		{
-		   Write-Verbose ("VERBOSE:Query Paging page {0} for {1}" -f $i++,$ObjectType )
-		  
-			$results.Values += $x.value
-			if (Get-Member -inputobject $x -name '@odata.nextlink' -MemberType Properties)
+			$results.Values += $expressionResult.value
+			if (Get-Member -inputobject $expressionResult -name '@odata.nextlink' -MemberType Properties)
 			{
-				$pagedUri = $x.'@odata.nextlink'
-				if (Get-Member -inputobject $x -name '@odata.deltalink' -MemberType Properties)
+				$nextPage = $expressionResult.'@odata.nextlink'
+				if (Get-Member -inputobject $expressionResult -name '@odata.deltalink' -MemberType Properties)
 				{
-					$results.deltalink = $x.'@odata.deltalink'
+					$results.deltalink = $expressionResult.'@odata.deltalink'
 					Write-Verbose ("Delta Link: {0}" -f $results.deltalink)
 				}
-				if ($pagedUri -notlike $Null)
+				if ($nextPage -notlike $Null)
 				{
-					Write-Debug ("DEBUG:Getting Next Page of results using Paging URI: {0}" -f $pagedUri )
-					$cmd = 'Invoke-RestMethod -Method Get -Uri $pagedUri -Headers $AuthHeader'
-					$x = $null
-					$x = Invoke-Expression $cmd
+					Write-Debug ("DEBUG:Getting Next Page of results using Paging URI: {0}" -f $nextPage )
+					$cmd = 'Invoke-RestMethod -Method Get -Uri $nextPage -Headers $AuthHeader'
+					$expressionResult = $null
+					$expressionResult = Invoke-Expression $cmd
 				}
 			}
 			else
 			{
-				$pagedUri = $null
+				$nextPage = $null
 			}
 		}
-		until ($pagedUri -eq $Null)
+		until ($nextPage -eq $null)
 
 		if (Get-Member -inputobject $x -name '@odata.deltalink' -MemberType Properties)
-			{
-				$results.deltalink = $x.'@odata.deltalink'
-				Write-Verbose ("Delta Link: {0}" -f $results.deltalink)
-			}
-		
+		{
+			$results.deltalink = $x.'@odata.deltalink'
+			Write-Verbose ("Delta Link: {0}" -f $results.deltalink)
+		}
     }
 	
 	Write-Output ([pscustomobject]$results)
