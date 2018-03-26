@@ -21,19 +21,13 @@ function Get-MyAzureADBasicPermissionSet {
 
 function New-MyAzureADApplicationRegistration {
     [CmdletBinding()]
-	param(
-	[Parameter(Position=0)]
-    [string]$DisplayName,
-    [Parameter(Position=1)]
-    [string]$HomePage,
-    [Parameter(Position=2)]
-    [string]$IdentifierUri = $HomePage,
-    [Parameter(Position=3)]
-	[Array]$ReplyUrls = $HomePage,
-    [Parameter(Position=4)]
-    [boolean]$ImplicitFlow = $false,
-	[Parameter(Position=5)]
-    [Microsoft.Open.AzureAD.Model.RequiredResourceAccess]$Permissions = $null
+	Param(
+		[string]$DisplayName,
+		[string]$HomePage,
+		[string]$IdentifierUri = $HomePage,
+		[Array]$ReplyUrls = $HomePage,
+		[boolean]$ImplicitFlow = $false,
+		[Microsoft.Open.AzureAD.Model.RequiredResourceAccess]$Permissions = $null
 	)
 	[Collections.Generic.List[String]]$Urls = $ReplyUrls
 	$application = New-AzureADApplication -DisplayName $DisplayName -HomePage $HomePage -IdentifierUris $IdentifierUri -ReplyUrls $Urls -Oauth2AllowImplicitFlow $ImplicitFlow -RequiredResourceAccess $Permissions
@@ -56,37 +50,17 @@ function Get-MyAzureADGraphObjects {
     Param
     (
         # Authorization Token from Azure AD
-        [Parameter(Mandatory=$true,
-                   ValueFromPipelineByPropertyName=$true,
-                   Position=0)]
+        [Parameter(Mandatory=$true)]
         $AuthHeader,
-		[Parameter(Mandatory=$true,
-                   ValueFromPipelineByPropertyName=$true,
-                   Position=1)]
-		[string]
-		$ObjectCollection,
-		[Parameter(Mandatory=$false,
-                   ValueFromPipelineByPropertyName=$true,
-                   Position=2)]
-		[string]
-		$ApiVersion = "beta",
-		[Parameter(Mandatory=$false,
-                   ValueFromPipelineByPropertyName=$true,
-                   Position=0)]
-		[string[]]
-		$Attributes,
-		[Parameter(Mandatory=$false,
-                   ValueFromPipelineByPropertyName=$true,
-                   Position=0)]
-		[string]
-		$Filter,
-		[string]
-		$EndPoint = "graph.microsoft.com",
-		$Top = "999",
-		[switch]
-		$AsDeltaQuery,
-		[string]
-		$DeltaLink
+		[Parameter(Mandatory=$true)]
+		[string] $ObjectCollection,
+		[string] $ApiVersion = "beta",
+		[string[]] $Attributes,
+		[string] $Filter,
+		[string] $EndPoint = "graph.microsoft.com",
+		[string] $Top = "999",
+		[switch] $AsDeltaQuery,
+		[string] $DeltaLink
     )
 
 	$results = @{}
@@ -97,11 +71,11 @@ function Get-MyAzureADGraphObjects {
 	$maxResults = "top=$Top"
 	$deltaQuery = If($AsDeltaQuery) {"/delta"} Else {""}
 
-	if ($DeltaLink -like $null)
+	If ($DeltaLink -like $null)
 	{
 		$uri = "https://${EndPoint}/${ApiVersion}/${ObjectCollection}${deltaQuery}?${select}${maxResults}"
 	}
-	else
+	Else
 	{
 		$uri = $DeltaLink
 	}
@@ -116,36 +90,36 @@ function Get-MyAzureADGraphObjects {
 		write-error $_
 	}
 
-	if ($expressionResult)
+	If ($expressionResult)
 	{
 		$nextPage = $null
-		do 
+		Do 
 		{
 			$results.Values += $expressionResult.value
-			if (Get-Member -inputobject $expressionResult -name '@odata.nextlink' -MemberType Properties)
+			If (Get-Member -InputObject $expressionResult -Name '@odata.nextlink' -MemberType Properties)
 			{
 				$nextPage = $expressionResult.'@odata.nextlink'
-				if (Get-Member -inputobject $expressionResult -name '@odata.deltalink' -MemberType Properties)
+				If (Get-Member -InputObject $expressionResult -Name '@odata.deltalink' -MemberType Properties)
 				{
-					$results.deltalink = $expressionResult.'@odata.deltalink'
+					$results.DeltaLink = $expressionResult.'@odata.deltalink'
 				}
-				if ($nextPage -notlike $Null)
+				If ($nextPage -notlike $Null)
 				{
 					$expressionResult = Invoke-Expression 'Invoke-RestMethod -Method Get -Uri $nextPage -Headers $AuthHeader'
 				}
 			}
-			else
+			Else
 			{
 				$nextPage = $null
 			}
 		}
-		until ($nextPage -eq $null)
+		Until ($nextPage -eq $null)
 
-		if (Get-Member -inputobject $expressionResult -name '@odata.deltalink' -MemberType Properties)
+		If (Get-Member -InputObject $expressionResult -Name '@odata.deltalink' -MemberType Properties)
 		{
-			$results.deltalink = $expressionResult.'@odata.deltalink'
+			$results.DeltaLink = $expressionResult.'@odata.deltalink'
 		}
     }
 	
-	Write-Output ([pscustomobject]$results)
+	Write-Output ([PSCustomObject]$results)
 }
