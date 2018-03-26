@@ -109,7 +109,7 @@ function Get-MyAzureADGraphObjects {
 	$expressionResult = $null
 	try
 	{
-		$expressionResult = Invoke-Expression "Invoke-RestMethod -Method Get -Uri $Uri -Headers $AuthHeader"
+		$expressionResult = Invoke-Expression 'Invoke-RestMethod -Method Get -Uri $Uri -Headers $AuthHeader'
 	}
 	catch
 	{
