@@ -128,14 +128,10 @@ function Get-MyAzureADGraphObjects {
 				if (Get-Member -inputobject $expressionResult -name '@odata.deltalink' -MemberType Properties)
 				{
 					$results.deltalink = $expressionResult.'@odata.deltalink'
-					Write-Verbose ("Delta Link: {0}" -f $results.deltalink)
 				}
 				if ($nextPage -notlike $Null)
 				{
-					Write-Debug ("DEBUG:Getting Next Page of results using Paging URI: {0}" -f $nextPage )
-					$cmd = 'Invoke-RestMethod -Method Get -Uri $nextPage -Headers $AuthHeader'
-					$expressionResult = $null
-					$expressionResult = Invoke-Expression $cmd
+					$expressionResult = Invoke-Expression 'Invoke-RestMethod -Method Get -Uri $nextPage -Headers $AuthHeader'
 				}
 			}
 			else
@@ -145,10 +141,9 @@ function Get-MyAzureADGraphObjects {
 		}
 		until ($nextPage -eq $null)
 
-		if (Get-Member -inputobject $x -name '@odata.deltalink' -MemberType Properties)
+		if (Get-Member -inputobject $expressionResult -name '@odata.deltalink' -MemberType Properties)
 		{
-			$results.deltalink = $x.'@odata.deltalink'
-			Write-Verbose ("Delta Link: {0}" -f $results.deltalink)
+			$results.deltalink = $expressionResult.'@odata.deltalink'
 		}
     }
 	
